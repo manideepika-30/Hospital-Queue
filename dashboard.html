@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            color: #1e40af;
+            font-size: 24px;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: #f5576c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .logout-btn:hover {
+            background: #e0445a;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .patient-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .info-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .queue-status {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .status-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            color: #1e40af;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .queue-list {
+            margin-top: 20px;
+        }
+
+        .queue-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .queue-position {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .queue-department {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f0f0f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .patient-info {
+                grid-template-columns: 1fr;
+            }
+
+            .info-value {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">👤 Patient Dashboard</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #1e40af;">Your Queue Status</h2>
+            
+            <div id="patientContent">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading your information...
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #1e40af;">Live Queue</h2>
+            <div id="liveQueue">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading queue data...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Appointment Modal -->
+    <div id="appointmentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-bottom: 20px; color: #1e40af;">Register New Appointment</h2>
+            <form onsubmit="registerAppointment(event)">
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select id="department" required>
+                        <option value="">Select Department</option>
+                        <option value="General">General</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Neurology">Neurology</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reason">Reason for Visit</label>
+                    <input type="text" id="reason" required placeholder="e.g., General Checkup">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px;">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnvbITFo1CxzBC0cYSnf8D9zjrEOiplJ4",
+            authDomain: "hospital-5df2e.firebaseapp.com",
+            projectId: "hospital-5df2e",
+            storageBucket: "hospital-5df2e.firebasestorage.app",
+            messagingSenderId: "963588889140",
+            appId: "1:963588889140:web:c867699511d91297008861",
+            measurementId: "G-2GD4K746QX"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentPatientId = null;
+        let queueToken = null;
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentPatientId = user.uid;
+                loadPatientData();
+                loadQueueData();
+                setInterval(loadQueueData, 2000);
+            } else {
+                window.location.hash = 'patient-auth';
+            }
+        });
+
+        async function loadPatientData() {
+            try {
+                const patientDoc = await db.collection('patients').doc(currentPatientId).get();
+                if (patientDoc.exists) {
+                    const data = patientDoc.data();
+                    let content = `
+                        <div class="patient-info">
+                            <div class="info-box">
+                                <div class="info-label">Your Name</div>
+                                <div class="info-value">${data.name}</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label">Queue Token</div>
+                                <div class="info-value">${data.tokenNumber ? data.tokenNumber : 'N/A'}</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label">Status</div>
+                                <div class="info-value">${data.status ? data.status : 'No Active Token'}</div>
+                            </div>
+                        </div>
+                        <div class="queue-status">
+                            <div class="status-label">Department</div>
+                            <div class="status-value">${data.department ? data.department : 'Not Selected'}</div>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="openModal()">Register New Appointment</button>
+                        </div>
+                    `;
+                    document.getElementById('patientContent').innerHTML = content;
+                }
+            } catch (error) {
+                console.error('Error loading patient data:', error);
+            }
+        }
+
+        async function loadQueueData() {
+            try {
+                const patientsSnap = await db.collection('patients').orderBy('createdAt', 'desc').limit(10).get();
+                let queueHTML = '';
+                let position = 1;
+
+                patientsSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.tokenNumber) {
+                        queueHTML += `
+                            <div class="queue-item">
+                                <div class="queue-position">${data.tokenNumber}</div>
+                                <div>${data.name}</div>
+                                <div class="queue-department">${data.department || 'General'} - ${data.status || 'Waiting'}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (queueHTML === '') {
+                    queueHTML = '<p style="color: #666; text-align: center;">No patients in queue currently</p>';
+                }
+
+                document.getElementById('liveQueue').innerHTML = queueHTML;
+            } catch (error) {
+                console.error('Error loading queue data:', error);
+            }
+        }
+
+        function openModal() {
+            document.getElementById('appointmentModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('appointmentModal').style.display = 'none';
+        }
+
+        async function registerAppointment(event) {
+            event.preventDefault();
+            const department = document.getElementById('department').value;
+            const reason = document.getElementById('reason').value;
+
+            try {
+                const tokenNumber = 'HQ-' + String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+                await db.collection('patients').doc(currentPatientId).update({
+                    tokenNumber: tokenNumber,
+                    department: department,
+                    reason: reason,
+                    status: 'Waiting',
+                    registeredAt: new Date()
+                });
+
+                closeModal();
+                loadPatientData();
+                alert('Appointment registered successfully! Your token: ' + tokenNumber);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                window.location.hash = '';
+            });
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('appointmentModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
